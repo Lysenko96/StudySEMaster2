@@ -1,0 +1,123 @@
+Лістинг програми на Python
+Шифр Калина
+Kalyna.py
+import unittest
+from symmetric.dstu import dstu2014
+from publickey.dstu4145 import DSTU4145
+import binascii
+
+class TestEcrypto(unittest.TestCase):
+
+    def test_dstu_enc(self):
+        key = list(binascii.unhexlify('000102030405060708090a0b0c0d0e0f'))
+        pt = list(binascii.unhexlify('101112131415161718191a1b1c1d1e1f'))
+        dstu =dstu2014(key)
+        self.assertEqual(binascii.hexlify(bytearray(dstu.encryption(pt))), b'81bf1c7d779bac20e1c9ea39b4d2ad06')
+
+    def test_dst_dec(self):
+        key2 = list(binascii.unhexlify('0f0e0d0c0b0a09080706050403020100'))
+        ct = list(binascii.unhexlify('1f1e1d1c1b1a19181716151413121110'))
+        dstu2 = dstu2014(key2)
+        self.assertEqual(binascii.hexlify(bytearray(dstu2.decryption(ct))), b'7291ef2b470cc7846f09c2303973dad7')
+
+    def test_dstu_sign(self):
+        dstu_x = 0x72D867F93A93AC27DF9FF01AFFE74885C8C540420
+        dstu_y = 0x0224A9C3947852B97C5599D5F4AB81122ADC3FD9B
+        dstu_a = 0x1
+        dstu_b = 0x5FF6108462A2DC8210AB403925E638A19C1455D21
+        dstu_p = 0x800000000000000000000000000000000000000c9
+        dstu_n = 0x400000000000000000002BEC12BE2262D39BCF14D
+        dstu = DSTU4145(dstu_p, dstu_a, dstu_b, dstu_x, dstu_y, dstu_n)
+        message = 0x03A2EB95B7180166DDF73532EEB76EDAEF52247FF
+        dstu_d = 0x183F60FDF7951FF47D67193F8D073790C1C9B5A3E
+        dstu_e = 0x1025E40BD97DB012B7A1D79DE8E12932D247F61C6
+        signature = dstu.sign(message, dstu_d, dstu_e)
+        expected = (0x274EA2C0CAA014A0D80A424F59ADE7A93068D08A7, 0x2100D86957331832B8E8C230F5BD6A332B3615ACA)
+        self.assertEqual(signature, expected)
+
+    def test_dstu_verify(self):
+        dstu_x = 0x72D867F93A93AC27DF9FF01AFFE74885C8C540420
+        dstu_y = 0x0224A9C3947852B97C5599D5F4AB81122ADC3FD9B
+        dstu_a = 0x1
+        dstu_b = 0x5FF6108462A2DC8210AB403925E638A19C1455D21
+        dstu_p = 0x800000000000000000000000000000000000000c9
+        dstu_n = 0x400000000000000000002BEC12BE2262D39BCF14D
+        dstu = DSTU4145(dstu_p, dstu_a, dstu_b, dstu_x, dstu_y, dstu_n)
+        message = 0x03A2EB95B7180166DDF73532EEB76EDAEF52247FF
+        dstu_d = 0x183F60FDF7951FF47D67193F8D073790C1C9B5A3E
+        dstu_Q = dstu.gen_keys(dstu_d)[1]
+        signature = (0x274EA2C0CAA014A0D80A424F59ADE7A93068D08A7, 0x2100D86957331832B8E8C230F5BD6A332B3615ACA)
+        self.assertEqual(dstu.verify(message, signature, dstu_Q), True)
+
+if __name__ == '__main__':
+    unittest.main()
+
+Лістинг програми на Python
+Шифр Threefish-256
+Threefish.py
+
+import time
+start_time = time.time()
+NW = 4
+C240 = 0x1BD11BDAA9FC1A22
+N_ROUNDS=72
+MASK = 2**64-1
+pi = (0, 3, 2, 1)
+R_256 = ((14, 16), (52, 57), (23, 40), (5, 37), (25, 33), (46, 12), (58, 22), (32, 32))
+
+def rotl_64(x, d):
+        return ((x << d) | (x >> (64-d))) & MASK
+
+def mix(x0, x1, R):
+        y0 = (x0+x1) & MASK
+        y1 = rotl_64(x1, R) ^ y0
+        return y0, y1
+
+def key_schedule(K, TW, s):
+        return (K[(s)%(NW+1)] & MASK,
+              (K[(s+1)%(NW+1)] + TW[s%3]) & MASK,
+              (K[(s+2)%(NW+1)] + TW[(s+1)%3]) & MASK,
+              (K[(s+3)%(NW+1)] + s) & MASK)
+
+def threefish(p, K, TW, debug=False):
+        K = (K[0], K[1], K[2], K[3], C240^K[0]^K[1]^K[2]^K[3])
+        TW = (TW[0], TW[1], TW[0]^TW[1])
+        v = list(p)
+        for r in range(N_ROUNDS):
+            e = [0]*NW
+            if r%4 == 0:
+                ksi = key_schedule(K, TW, r//4)
+                for i in range(NW):
+                    e[i] = (v[i] + ksi[i]) & MASK
+                if debug: print('key injection   ', list(map(hex, e)))
+            else:
+                e = v
+            f = [0]*NW
+            f[0], f[1] = mix(e[0], e[1], R_256[r%8][0])
+            f[2], f[3] = mix(e[2], e[3], R_256[r%8][1])
+            if (r%2 == 0) and debug: print('end of round %03i' % (r+1), list(map(hex, f)))
+            for i in range(NW):
+                v[i] = f[pi[i]]
+            if (r%2 == 1) and debug: print('end of round %03i' % (r+1), list(map(hex, v)))
+
+        ksi = key_schedule(K, TW, N_ROUNDS//4)
+        v = [((x + k)^pp) & MASK for x, k, pp in zip(v, ksi, p)]
+        if debug: print(list(map(hex, v)))
+
+        return v
+# Test run with parameters from the NIST CD, file KAT_MCT/skein_golden_kat_internals.txt
+
+K = (0x0,)*NW
+TW = (0x0,0x0)
+
+c = threefish((0x0,)*NW, K, TW)
+#print([hex(x) for x in c])
+
+K = (0x1716151413121110, 0x1F1E1D1C1B1A1918, 0x2726252423222120, 0x2F2E2D2C2B2A2928)
+TW = (0x0706050403020100, 0x0F0E0D0C0B0A0908)
+
+c = threefish((0xF8F9FAFBFCFDFEFF, 0xF0F1F2F3F4F5F6F7, 0xE8E9EAEBECEDEEEF, 0xE0E1E2E3E4E5E6E7), K, TW)
+#print([hex(x) for x in c])
+
+if __name__ == '__main__':
+    print("--- %s seconds ---" % (time.time() - start_time))
