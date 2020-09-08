@@ -98,19 +98,3 @@ def threefish(p, K, TW, debug=False):
         if debug: print(list(map(hex, v)))
 
         return v
-# Test run with parameters from the NIST CD, file KAT_MCT/skein_golden_kat_internals.txt
-
-K = (0x0,)*NW
-TW = (0x0,0x0)
-
-c = threefish((0x0,)*NW, K, TW)
-#print([hex(x) for x in c])
-
-K = (0x1716151413121110, 0x1F1E1D1C1B1A1918, 0x2726252423222120, 0x2F2E2D2C2B2A2928)
-TW = (0x0706050403020100, 0x0F0E0D0C0B0A0908)
-
-c = threefish((0xF8F9FAFBFCFDFEFF, 0xF0F1F2F3F4F5F6F7, 0xE8E9EAEBECEDEEEF, 0xE0E1E2E3E4E5E6E7), K, TW)
-#print([hex(x) for x in c])
-
-if __name__ == '__main__':
-    print("--- %s seconds ---" % (time.time() - start_time))
