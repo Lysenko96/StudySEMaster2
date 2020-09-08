@@ -1,6 +1,3 @@
-Лістинг програми на Python
-Шифр Калина
-Kalyna.py
 import unittest
 from symmetric.dstu import dstu2014
 from publickey.dstu4145 import DSTU4145
