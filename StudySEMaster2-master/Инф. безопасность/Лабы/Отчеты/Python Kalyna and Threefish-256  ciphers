@@ -49,10 +49,6 @@ class TestEcrypto(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
-Лістинг програми на Python
-Шифр Threefish-256
-Threefish.py
-
 import time
 start_time = time.time()
 NW = 4
